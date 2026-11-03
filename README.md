@@ -4,15 +4,15 @@ Código do Trabalho de Conclusão de Curso de Murilo Fiorio Pires (Faculdade de 
 
 Implementação em Python do modelo de decisão de consumo e portfólio de Samuelson (1969), calibrado com dados reais do Ibovespa e do CDI. O programa calcula a carteira ótima (quanto o investidor deveria deixar em renda variável), as frações da riqueza que ele consome em cada período e simula como a riqueza dele evolui ao longo do tempo. A função de utilidade é a CRRA, que é a usada no projeto do TCC.
 
-O código é uma esteira de etapas, no estilo *pipes and filters*, em que cada etapa recebe o resultado da anterior. As classes guardam o estado (os mercados e o investidor), e as contas do modelo ficam em funções que só recebem números e devolvem números. A explicação completa está em [`docs/project/projeto.md`](docs/project/projeto.md) e a lista de requisitos em [`docs/requisitos/requisitos.md`](docs/requisitos/requisitos.md).
+O código é uma esteira de etapas, no estilo *pipes and filters*, em que cada etapa recebe o resultado da anterior. As classes guardam o estado (os mercados e o investidor), e as contas do modelo ficam em funções que só recebem números e devolvem números. A explicação completa está em [`docs/projeto/projeto.md`](docs/projeto/projeto.md) e a lista de requisitos em [`docs/requisitos/requisitos.md`](docs/requisitos/requisitos.md).
 
 ## Instalação
 
 É preciso ter o Python 3.12. As versões das bibliotecas estão presas no `requirements.txt`, e vale instalar a partir dele em vez de ir instalando uma por uma.
 
 ```bash
-git clone https://github.com/ecompfin-ufrgs/optimal-trading-strategies-stochastic-discrete-time-environmente-brazil.git
-cd optimal-trading-strategies-stochastic-discrete-time-environmente-brazil
+git clone https://github.com/ecompfin-ufrgs/optimal-trading-strategies-stochastic-discrete-time-environment-brazil.git
+cd optimal-trading-strategies-stochastic-discrete-time-environment-brazil
 ```
 
 ```bash
@@ -22,10 +22,12 @@ pip install -r requirements.txt
 ## Rodando o modelo
 
 ```bash
-python -m app
+python -m app --diario
 ```
 
-Sem opções, o programa usa a base mensal, `data/mercado.db`. Com `--diario` ele usa a base diária, `data/mercado_diario.db`, que é a usada no trabalho. Os dois bancos têm dados reais do Ibovespa e do CDI; se o da frequência pedida não existir, o programa gera uma série sintética só para a demonstração continuar funcionando.
+O trabalho usa a base diária, `data/mercado_diario.db`, que está no repositório com dados reais do Ibovespa e do CDI.
+
+O programa também aceita dados mensais, que são o padrão quando se roda sem `--diario`. O banco mensal (`data/mercado.db`) não vem no repositório, porque o trabalho não o usa: sem ele, o programa roda com uma série sintética, só para a demonstração funcionar. Para ter dados mensais reais, basta criar o banco com a ingestão (veja "Atualizando a base de dados").
 
 Os parâmetros do investidor entram pela linha de comando, então dá para testar valores diferentes sem precisar editar o código. O `python -m app --help` mostra a lista completa:
 
@@ -69,7 +71,7 @@ Essa saída usa os 4 milhões de cenários do padrão. Os números e as figuras 
 python -m app --diario --n-scenarios 40000000 --graficos
 ```
 
-O motivo de usar tantos cenários está no fim da seção sobre a base de dados.
+O motivo de usar tantos cenários é o erro de Monte Carlo: com 4 milhões, a carteira ótima muda bastante de uma semente para outra (desvio-padrão de 0,0097 em 100 sementes); com 40 milhões, o desvio cai para 0,0030. A comparação está no notebook `tests/20_numeros_do_artigo.ipynb`.
 
 ## Figuras dos resultados
 
@@ -95,29 +97,33 @@ Sem a flag nenhum arquivo é escrito. Isso é de propósito: dá para ficar test
 
 No rodapé de cada figura ficam as informações da rodada que gerou ela: qual base, a janela de datas, o R_f, gamma, beta (ao ano e por período), T, W0, a quantidade de cenários e de trajetórias, a semente e o alpha ótimo que saiu.
 
-Cinco dessas figuras refazem contas sobre os cenários de Monte Carlo, e o [`projeto.md`](docs/project/projeto.md) explica quais. Na base diária, com os 4 milhões de cenários, a execução com a flag leva cerca de 1 minuto, contra poucos segundos sem ela; com os 40 milhões do artigo, uns dez vezes mais.
+Cinco dessas figuras refazem contas sobre os cenários de Monte Carlo, e o [`projeto.md`](docs/projeto/projeto.md) explica quais. Na base diária, com os 4 milhões de cenários, a execução com a flag leva cerca de 1 minuto, contra poucos segundos sem ela; com os 40 milhões do artigo, uns dez vezes mais.
 
 ## Atualizando a base de dados
 
-Os bancos que já estão no repositório bastam para rodar tudo. Os retornos do mensal, `data/mercado.db`, vão de 2015-02 a 2024-12, e os do diário, `data/mercado_diario.db`, de 2022-05-24 a 2026-08-05. As fontes são o Yahoo Finance, para o Ibovespa, e a API SGS do Banco Central, para o CDI (série 4391 no mensal e série 12 no diário). A ingestão sobrescreve o banco da frequência pedida, então há dois usos diferentes.
+O banco que está no repositório basta para reproduzir o trabalho. Os retornos do diário, `data/mercado_diario.db`, vão de 2022-05-24 a 2026-08-05. As fontes são o Yahoo Finance, para o Ibovespa, e a API SGS do Banco Central, para o CDI (série 12 no diário e série 4391 no mensal). A ingestão sobrescreve o banco da frequência pedida.
 
-Para refazer os bancos versionados, com as mesmas janelas:
+Para refazer o banco versionado, com a mesma janela:
 
 ```bash
-python -m app.ingestao 2015-01-01 2024-12-31
 python -m app.ingestao 2022-05-22 2026-08-06 --diario
 ```
 
-O primeiro recria o `data/mercado.db` e o segundo, o `data/mercado_diario.db`. A tabela `retornos`, que é a que o modelo usa, sai igual à versionada. A única diferença aparece na tabela `cdi` do diário, que ganha o dia 2026-08-06: a API do Banco Central inclui a data final pedida e a do Yahoo não, e por isso esse dia fica sem retorno do Ibovespa para casar.
+A tabela `retornos`, que é a que o modelo usa, sai igual à versionada. A única diferença aparece na tabela `cdi`, que ganha o dia 2026-08-06: a API do Banco Central inclui a data final pedida e a do Yahoo não, e por isso esse dia fica sem retorno do Ibovespa para casar.
 
 Para baixar dados mais novos, basta não passar a data final, e a ingestão vai até hoje:
 
 ```bash
-python -m app.ingestao
 python -m app.ingestao 2022-05-22 --diario
 ```
 
-Sem nenhuma data, o mensal começa em 2000-01-01. Nos dois casos os resultados passam a ser os da janela nova, e não mais os do texto do trabalho.
+Nesse caso os resultados passam a ser os da janela nova, e não mais os do texto do trabalho.
+
+Para criar um banco mensal (`data/mercado.db`), que o trabalho não usa, rode a ingestão sem `--diario`; sem nenhuma data, ela começa em 2000-01-01:
+
+```bash
+python -m app.ingestao
+```
 
 ## Estrutura
 
@@ -131,7 +137,7 @@ app/                      pacote da aplicação
   principal.py            liga as etapas na ordem (F10, NF5)
   graficos.py             figuras dos resultados, fora da sequência (F15)
   __main__.py             a linha de comando, python -m app (F14, NF2, NF5)
-data/                     bancos SQLite versionados (mensal e diário)
+data/                     banco SQLite versionado (diário)
 results/                  figuras geradas por --graficos (versionadas)
 docs/                     documento de projeto e de requisitos
 tests/                    20 notebooks, organizados por requisito
